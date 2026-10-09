@@ -1,46 +1,50 @@
-# Intel P-State performance governor fix for power-profiles-daemon
+[中文](#中文) | [English](#english)
 
-A local Ubuntu package rebuild of **power-profiles-daemon 0.30-2** for one verified configuration where selecting the performance profile changed EPP to `performance` but left all CPUFreq policies on the `powersave` governor.
+# 中文
 
-## Hardware and verified environment
+**这次问题的完整排查经过、补丁思路和实机验证记录，见我的博客文章：[Ubuntu Intel 性能模式问题排查：我修复 i7-1260P 的 PPD Governor 切换](https://xingwangzhe.fun/posts/ubuntu-intel-pstate-performance-governor/)。**
 
-- Laptop CPU: **Intel Core i7-1260P** (12th Gen, 16 logical CPUs)
-- Distribution: **Ubuntu 26.04.1 LTS (Resolute Raccoon)**
-- Kernel: **7.0.0-38-generic**
-- Driver: `intel_pstate`, active mode
-- Firmware platform profile: unavailable (`PlatformDriver: placeholder`)
-- Patched package: `power-profiles-daemon 0.30-2xing1`, `amd64`
+## 项目说明
 
-This is a machine-specific, experimental rebuild. It is not an Intel batch/stepping diagnosis, an official Ubuntu package, or a general performance guarantee. Other kernels, CPUs, firmware implementations, and PPD versions have not been validated.
+这是基于 Ubuntu `power-profiles-daemon 0.30-2` 重打包的本地实验版本，针对一台笔记本上“性能模式已切换，但 CPUFreq governor 仍为 `powersave`”的问题调整 Intel P-State 的 profile 应用逻辑。
 
-## What changes
+## 已验证环境
 
-The bundled patch changes PPD's Intel P-State EPP path:
+- CPU：**Intel Core i7-1260P**（第 12 代，16 个逻辑 CPU）
+- 系统：**Ubuntu 26.04.1 LTS（Resolute Raccoon）**
+- 内核：**7.0.0-38-generic**
+- 调频驱动：`intel_pstate`，active 模式
+- 固件平台 profile：不可用（PPD 显示 `PlatformDriver: placeholder`）
+- 修复包：`power-profiles-daemon 0.30-2xing1`，`amd64`
 
-- On `performance`, set each EPP policy's `scaling_governor` to `performance` and skip an EPP write.
-- On `balanced` and `power-saver`, first restore `powersave`, then write the EPP preference selected by PPD.
-- No additional service, D-Bus monitor, kernel parameter, or thermal configuration is added.
+这是针对上述单机配置验证的非官方实验包，不是 Intel 某一批次或步进的故障结论，也不代表其他处理器、固件、内核或 PPD 版本。未经验证的组合不保证适用。
 
-This ordering avoids writing a non-performance EPP while the active `intel_pstate` performance algorithm owns EPP and may reject the write with `EBUSY`.
+## 补丁行为
 
-## Build and verification record
+- 切到 `performance` 时，将每个 EPP policy 的 `scaling_governor` 设为 `performance`，并跳过 EPP 写入。
+- 切到 `balanced` 或 `power-saver` 时，先恢复 `powersave`，再写入 PPD 按 profile 和电源状态选择的 EPP。
+- 不增加额外的 systemd 服务、D-Bus 监听器或内核启动参数，也不调整散热配置。
 
-- Source base: Ubuntu `power-profiles-daemon 0.30-2` source package.
-- Debian package version: `0.30-2xing1`.
-- PPD test suite: **127 passed, 0 failed** in the recorded local build.
-- On the machine above, a live `balanced → performance → balanced` round trip yielded 16 `performance` governors in performance and 16 `powersave` governors with `balance_performance` EPP on AC after returning to balanced. The PPD journal check found no matching `busy`, `failed`, `error`, or `warning` entries in the checked interval.
-- No controlled benchmark was run; no throughput or sustained-frequency gain is claimed.
+在 active `intel_pstate` 的性能算法管理 EPP 时，写入非性能 EPP 可能被内核以 `EBUSY` 拒绝。补丁通过调整同一个 PPD profile 激活流程里的写入顺序来避开这一冲突。
 
-## Install
+## 构建与验证记录
 
-Download `power-profiles-daemon_0.30-2xing1_amd64.deb` from the GitHub Release and inspect the package before installing. Installation replaces the system PPD package and requires administrator authorization:
+- 源码基线：Ubuntu `power-profiles-daemon 0.30-2`。
+- Debian 包版本：`0.30-2xing1`。
+- 本地记录的 PPD 测试套件：**127 项通过，0 项失败**。
+- 在上述机器上实际完成 `balanced → performance → balanced` 往返：performance 档 16 个 governor 均为 `performance`；回到接 AC 的 balanced 档后，16 个 governor 均为 `powersave`，EPP 均为 `balance_performance`。检查时段内的 PPD journal 未发现匹配 `busy`、`failed`、`error` 或 `warning` 的记录。
+- 没有进行控制变量跑分，不声称有特定吞吐量、频率或性能提升。
+
+## 安装
+
+从 [GitHub Release `v0.30-2xing1`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/tag/v0.30-2xing1) 下载修复包。Release 同时提供原版 Ubuntu `0.30-2` 包用于回滚。安装会替换系统 PPD 包并改变系统电源策略；安装前请检查包信息，并确认系统依赖符合包元数据要求。
 
 ```sh
 sha256sum -c SHA256SUMS
 pkexec dpkg -i ./power-profiles-daemon_0.30-2xing1_amd64.deb
 ```
 
-After installation, verify the profile and every policy:
+安装后检查 profile 和所有 policy：
 
 ```sh
 powerprofilesctl set performance
@@ -54,11 +58,86 @@ for f in /sys/devices/system/cpu/cpufreq/policy*/energy_performance_preference; 
 journalctl -u power-profiles-daemon --since '10 minutes ago' --no-pager | grep -Ei 'busy|failed|error|warning'
 ```
 
-Expected on the verified AC setup: 16 `performance` governors in performance; 16 `powersave` governors and 16 `balance_performance` EPP values in balanced. No grep output means no matching entries in that interval only.
+在已验证的 AC 场景中，预期 performance 档有 16 个 `performance` governor；balanced 档有 16 个 `powersave` governor 和 16 个 `balance_performance` EPP。最后一条命令无输出，只表示该时间范围内没有匹配这些词的日志。
 
-## Roll back
+## 回滚
 
-The release also contains the unmodified Ubuntu `0.30-2` package for rollback:
+```sh
+pkexec dpkg -i ./power-profiles-daemon_0.30-2_amd64.deb
+powerprofilesctl set balanced
+```
+
+## 限制与风险
+
+`performance` governor 选择驱动的性能算法，不会把 CPU 固定在标称最高频率，也不能绕过固件功耗限制、温度限制或热节流。这个包修改特权系统电源策略，且不通过 Ubuntu 官方仓库分发。请先审阅补丁与包元数据，并保留原版包或其他恢复方式。
+
+## 源码与许可
+
+补丁基于 GPL-3 许可的 PPD 源码；上游归属与版权信息见 `COPYING` 和 `NOTICE`。仓库包含源码补丁、验证记录和便于复现或回滚的 Debian 二进制包。
+
+---
+
+# English
+
+**For the full investigation, patch rationale, and on-device verification, see my blog post: [Ubuntu Intel Performance Mode Issue: Fixing PPD Governor Switching on an i7-1260P](https://xingwangzhe.fun/posts/ubuntu-intel-pstate-performance-governor/).**
+
+## Overview
+
+This is an unofficial local rebuild of Ubuntu's `power-profiles-daemon 0.30-2`. It changes the Intel P-State profile application path for one laptop where selecting the performance profile changed EPP but left CPUFreq policies on the `powersave` governor.
+
+## Verified environment
+
+- CPU: **Intel Core i7-1260P** (12th Gen, 16 logical CPUs)
+- OS: **Ubuntu 26.04.1 LTS (Resolute Raccoon)**
+- Kernel: **7.0.0-38-generic**
+- Scaling driver: `intel_pstate`, active mode
+- Firmware platform profile: unavailable (`PlatformDriver: placeholder` in PPD)
+- Patched package: `power-profiles-daemon 0.30-2xing1`, `amd64`
+
+This experimental package was verified on that specific machine configuration. It is not evidence of a defect affecting an Intel batch or stepping, and it is not an official Ubuntu package or a general performance guarantee. Other CPUs, firmware, kernels, and PPD versions have not been validated.
+
+## Patch behavior
+
+- When switching to `performance`, set `scaling_governor` to `performance` for each EPP policy and skip the EPP write.
+- When switching to `balanced` or `power-saver`, restore `powersave` first, then write the EPP preference selected by PPD for the profile and power state.
+- No extra systemd service, D-Bus monitor, kernel boot parameter, or thermal configuration is added.
+
+When the active `intel_pstate` performance algorithm owns EPP, the kernel may reject a non-performance EPP write with `EBUSY`. The patch avoids that conflict by ordering writes within PPD's existing profile activation flow.
+
+## Build and verification record
+
+- Source base: Ubuntu `power-profiles-daemon 0.30-2`.
+- Debian package version: `0.30-2xing1`.
+- Recorded local PPD test suite: **127 passed, 0 failed**.
+- A live `balanced → performance → balanced` round trip was performed on the machine above. The performance profile had 16 `performance` governors. After returning to balanced on AC, all 16 governors were `powersave` and all 16 EPP values were `balance_performance`. No matching `busy`, `failed`, `error`, or `warning` entries were found in the checked PPD journal interval.
+- No controlled benchmark was run, so no specific throughput, clock speed, or performance gain is claimed.
+
+## Install
+
+Download the patched package from the [GitHub Release `v0.30-2xing1`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/tag/v0.30-2xing1). The release also includes the original Ubuntu `0.30-2` package for rollback. Installation replaces the system PPD package and changes system power policy. Review the package metadata and confirm its dependencies match your system first.
+
+```sh
+sha256sum -c SHA256SUMS
+pkexec dpkg -i ./power-profiles-daemon_0.30-2xing1_amd64.deb
+```
+
+After installation, verify the active profile and every policy:
+
+```sh
+powerprofilesctl set performance
+powerprofilesctl get
+for f in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do cat "$f"; done | sort | uniq -c
+
+powerprofilesctl set balanced
+powerprofilesctl get
+for f in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do cat "$f"; done | sort | uniq -c
+for f in /sys/devices/system/cpu/cpufreq/policy*/energy_performance_preference; do cat "$f"; done | sort | uniq -c
+journalctl -u power-profiles-daemon --since '10 minutes ago' --no-pager | grep -Ei 'busy|failed|error|warning'
+```
+
+On the verified AC setup, expect 16 `performance` governors in performance mode; in balanced mode, expect 16 `powersave` governors and 16 `balance_performance` EPP values. No output from the final command only means no matching log entries were found in that time interval.
+
+## Rollback
 
 ```sh
 pkexec dpkg -i ./power-profiles-daemon_0.30-2_amd64.deb
@@ -67,8 +146,8 @@ powerprofilesctl set balanced
 
 ## Limits and risk
 
-The performance governor selects the driver's performance algorithm; it does not pin the CPU to its advertised maximum clock or defeat firmware power limits, thermals, or throttling. This package changes privileged system power policy and is not distributed through Ubuntu's repositories. Review the patch and package metadata before use. Keep the original package or another recovery path available.
+The `performance` governor selects the driver's performance algorithm; it does not pin the CPU to its advertised maximum clock or override firmware power limits, thermal limits, or throttling. This package changes privileged system power policy and is not distributed through Ubuntu repositories. Review the patch and package metadata before use, and keep the original package or another recovery path available.
 
 ## Source and license
 
-The patch is against the GPL-3-licensed PPD source; see `COPYING` and `NOTICE` for upstream attribution. This repository contains the source patch, a test/verification record, and binary Debian packages for convenient reproduction/rollback.
+The patch is based on GPL-3-licensed PPD source. See `COPYING` and `NOTICE` for upstream attribution and copyright information. This repository contains the source patch, verification record, and Debian binary packages for reproduction or rollback.
