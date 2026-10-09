@@ -89,7 +89,7 @@ powerprofilesctl set balanced
 
 ## 源码与许可
 
-PPD 主程序与这里的 C 文件依 PPD 上游声明采用 GPL-3；完整对应的上游源码、Debian packaging 与本地改动一并提供，便于检查和重建二进制包。补丁改动到的 `tests/integration_test.py` 在上游 `debian/copyright` 中标注为 GPL-2-or-later。我们保留原作者版权声明，只在本地补丁和新增内容范围内署名，不把上游代码或其他人的版权据为己有。许可文本见 [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)、[`LICENSES/GPL-2.0.txt`](LICENSES/GPL-2.0.txt) 和 [`LICENSES/GFDL-1.3.txt`](LICENSES/GFDL-1.3.txt)；详细文件归属及适用版本以随附源码包中的 `debian/copyright` 为准。
+PPD 主程序与这里的 C 文件依 PPD 上游声明采用 GPL-3；完整对应的上游源码、Debian packaging 与本地改动一并提供，便于检查和重建二进制包。补丁改动到的 `tests/integration_test.py` 在上游 `debian/copyright` 中标注为 GPL-2-or-later。我们保留原作者版权声明，只在本地补丁和新增内容范围内署名，不把上游代码或其他人的版权据为己有。仓库根目录 [`LICENSE`](LICENSE) 附有完整 GPL-3 原文（适用于 PPD 主程序和本仓库的 C 驱动源码）。[`LICENSES/`](LICENSES/) 按许可分别附有 GPL-3、GPL-2 和 GFDL 原文；其中 `tests/integration_test.py` 是 GPL-2-or-later，文档按上游标注为 GFDL-NIV-1.1-or-later。逐文件版权和许可归属以随附源码包中的 `debian/copyright` 为准。
 
 ---
 
@@ -182,4 +182,4 @@ The `performance` governor selects the driver's performance algorithm; it does n
 
 ## Source and license
 
-The PPD daemon and the C file here are licensed under GPL-3 as declared by upstream. The corresponding upstream source, Debian packaging, and local changes are provided together so the binary package can be reviewed and rebuilt. The patch also modifies `tests/integration_test.py`, which upstream `debian/copyright` identifies as GPL-2-or-later. Original copyright notices are retained; attribution to this project's local modifications does not claim ownership of upstream code or other contributors' work. License texts are in [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt), [`LICENSES/GPL-2.0.txt`](LICENSES/GPL-2.0.txt), and [`LICENSES/GFDL-1.3.txt`](LICENSES/GFDL-1.3.txt). For file-by-file licensing and the applicable license versions, consult `debian/copyright` in the included source package.
+The PPD daemon and the C file here are licensed under GPL-3 as declared by upstream. The corresponding upstream source, Debian packaging, and local changes are provided together so the binary package can be reviewed and rebuilt. The patch also modifies `tests/integration_test.py`, which upstream `debian/copyright` identifies as GPL-2-or-later. Original copyright notices are retained; attribution to this project's local modifications does not claim ownership of upstream code or other contributors' work. The repository root [`LICENSE`](LICENSE) contains the full GPL-3 text, which applies to the PPD daemon and the C driver source here. [`LICENSES/`](LICENSES/) provides the complete GPL-3, GPL-2, and GFDL texts separately. The modified `tests/integration_test.py` is GPL-2-or-later, and the upstream documentation is marked GFDL-NIV-1.1-or-later. For file-by-file copyright and license attribution, consult `debian/copyright` in the included source package.
