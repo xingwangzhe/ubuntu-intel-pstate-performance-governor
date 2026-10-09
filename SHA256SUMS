@@ -1,5 +1,3 @@
-476b74a46ec1ae19d1c43bfa00957d53dd9a51ea8229da06d8aee87e4ea7653e  power-profiles-daemon_0.30-2_amd64.deb
-90da890c5a9c05a65916c2b546569c03c2e0640515e693355eeae256b8a7bb9a  power-profiles-daemon_0.30-2xing1_amd64.deb
 17c8c0e094b20cccfc699eeffbbfe77b00d0a9ecc3d37020950b3ac6297da69b  intel-pstate-performance-governor.patch
 a02b340e1198230a986c0dd05e58dfb359b1939109139acc2947bd0c631f1835  source/power-profiles-daemon_0.30-2.debian.tar.xz
 800ba32fed9823627faf9b47fcff15171e2d38f17035cb76da109ec60a4f2bc8  source/power-profiles-daemon_0.30-2.dsc

@@ -53,7 +53,7 @@ dpkg-buildpackage -b -uc -us
 
 ## 安装
 
-从 [GitHub Release `v0.30-2xing1`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/tag/v0.30-2xing1) 下载修复包。Release 同时提供原版 Ubuntu `0.30-2` 包用于回滚。安装会替换系统 PPD 包并改变系统电源策略；安装前请检查包信息，并确认系统依赖符合包元数据要求。
+源码仓库不存放 `.deb` 二进制包。请从 [GitHub Release `v0.30-2xing1`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/tag/v0.30-2xing1) 下载：[修复版 `power-profiles-daemon_0.30-2xing1_amd64.deb`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/download/v0.30-2xing1/power-profiles-daemon_0.30-2xing1_amd64.deb)；[原版 Ubuntu `0.30-2` 包（回滚用）](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/download/v0.30-2xing1/power-profiles-daemon_0.30-2_amd64.deb)。安装会替换系统 PPD 包并改变系统电源策略；安装前请检查包信息，并确认系统依赖符合包元数据要求。`SHA256SUMS` 仅覆盖本仓库中的源码、许可和补丁文件，不覆盖 Release 二进制资产。
 
 ```sh
 sha256sum -c SHA256SUMS
@@ -146,7 +146,7 @@ The source descriptor (`.dsc`) carries an upstream signature. When extracting it
 
 ## Install
 
-Download the patched package from the [GitHub Release `v0.30-2xing1`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/tag/v0.30-2xing1). The release also includes the original Ubuntu `0.30-2` package for rollback. Installation replaces the system PPD package and changes system power policy. Review the package metadata and confirm its dependencies match your system first.
+The source repository does not store `.deb` binaries. Download them from the [GitHub Release `v0.30-2xing1`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/tag/v0.30-2xing1): [patched `power-profiles-daemon_0.30-2xing1_amd64.deb`](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/download/v0.30-2xing1/power-profiles-daemon_0.30-2xing1_amd64.deb) and [original Ubuntu `0.30-2` package for rollback](https://github.com/xingwangzhe/ubuntu-intel-pstate-performance-governor/releases/download/v0.30-2xing1/power-profiles-daemon_0.30-2_amd64.deb). Installation replaces the system PPD package and changes system power policy. Review the package metadata and confirm its dependencies match your system first. `SHA256SUMS` covers only the source, license, and patch files kept in this repository; it does not cover the binary Release assets.
 
 ```sh
 sha256sum -c SHA256SUMS
