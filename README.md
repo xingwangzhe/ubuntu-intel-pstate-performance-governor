@@ -27,6 +27,22 @@
 
 在 active `intel_pstate` 的性能算法管理 EPP 时，写入非性能 EPP 可能被内核以 `EBUSY` 拒绝。补丁通过调整同一个 PPD profile 激活流程里的写入顺序来避开这一冲突。
 
+## 关键 C 源码与上游改造
+
+关键实现直接放在 [`src/ppd-driver-intel-pstate.c`](src/ppd-driver-intel-pstate.c)，这是基于 PPD 0.30-2 修改后的完整 Intel P-State 驱动 C 文件，保留了上游版权与 GPL-3 头部。便于应用到干净上游源码的完整改动（包括对应集成测试更新）见 [`intel-pstate-performance-governor.patch`](intel-pstate-performance-governor.patch)。`source/` 中同时提供生成修复包所基于的 Ubuntu 0.30-2 上游 tarball、Debian packaging tarball 和 `.dsc` 源码包描述文件。
+
+这项修复需要**改造并重新构建 power-profiles-daemon 上游源码**：补丁修改 `src/ppd-driver-intel-pstate.c` 中 governor/EPP 应用顺序，也更新 `tests/integration_test.py` 对 performance 和回切行为的断言。它不是可单独安装的脚本或 sysfs 配置。可按以下步骤展开并应用补丁：
+
+```sh
+dpkg-source -x source/power-profiles-daemon_0.30-2.dsc
+cd power-profiles-daemon-0.30
+patch -p1 < ../intel-pstate-performance-governor.patch
+dch --local xing1 "Use the intel_pstate performance governor for the performance profile"
+dpkg-buildpackage -b -uc -us
+```
+
+源码包描述文件 `.dsc` 带有上游签名。用 `dpkg-source` 展开时，应确认签名由本机配置的可信 Debian/Ubuntu 密钥验证；如果工具报告缺少公钥或签名无法验证，就不能视为通过验证。`sha256sum -c SHA256SUMS` 可检查文件是否与仓库清单一致，但清单本身未签名，不能单独证明来源。然后按常规 Debian packaging 流程安装构建出的 `0.30-2xing1` 包，并按上面的验证步骤检查。该命令记录源码改造路径；不同构建环境可能需要先安装 PPD 的 build dependencies。
+
 ## 构建与验证记录
 
 - 源码基线：Ubuntu `power-profiles-daemon 0.30-2`。
@@ -73,7 +89,7 @@ powerprofilesctl set balanced
 
 ## 源码与许可
 
-补丁基于 GPL-3 许可的 PPD 源码；上游归属与版权信息见 `COPYING` 和 `NOTICE`。仓库包含源码补丁、验证记录和便于复现或回滚的 Debian 二进制包。
+PPD 主程序与这里的 C 文件依 PPD 上游声明采用 GPL-3；完整对应的上游源码、Debian packaging 与本地改动一并提供，便于检查和重建二进制包。补丁改动到的 `tests/integration_test.py` 在上游 `debian/copyright` 中标注为 GPL-2-or-later。我们保留原作者版权声明，只在本地补丁和新增内容范围内署名，不把上游代码或其他人的版权据为己有。许可文本见 [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)、[`LICENSES/GPL-2.0.txt`](LICENSES/GPL-2.0.txt) 和 [`LICENSES/GFDL-1.3.txt`](LICENSES/GFDL-1.3.txt)；详细文件归属及适用版本以随附源码包中的 `debian/copyright` 为准。
 
 ---
 
@@ -103,6 +119,22 @@ This experimental package was verified on that specific machine configuration. I
 - No extra systemd service, D-Bus monitor, kernel boot parameter, or thermal configuration is added.
 
 When the active `intel_pstate` performance algorithm owns EPP, the kernel may reject a non-performance EPP write with `EBUSY`. The patch avoids that conflict by ordering writes within PPD's existing profile activation flow.
+
+## Key C source and upstream changes
+
+The key implementation is available directly as [`src/ppd-driver-intel-pstate.c`](src/ppd-driver-intel-pstate.c). It is the complete modified Intel P-State driver source file based on PPD 0.30-2, with the upstream copyright and GPL-3 header retained. The complete change, including the related integration-test updates, is in [`intel-pstate-performance-governor.patch`](intel-pstate-performance-governor.patch). The `source/` directory also contains the Ubuntu 0.30-2 upstream tarball, Debian packaging tarball, and `.dsc` source-package descriptor used as the source base for the patched package.
+
+This fix requires **modifying and rebuilding the upstream power-profiles-daemon source**. The patch changes governor/EPP application order in `src/ppd-driver-intel-pstate.c` and updates the assertions in `tests/integration_test.py` for performance and switching back. It is not a standalone script or sysfs setting. To unpack the source and apply the patch:
+
+```sh
+dpkg-source -x source/power-profiles-daemon_0.30-2.dsc
+cd power-profiles-daemon-0.30
+patch -p1 < ../intel-pstate-performance-governor.patch
+dch --local xing1 "Use the intel_pstate performance governor for the performance profile"
+dpkg-buildpackage -b -uc -us
+```
+
+The source descriptor (`.dsc`) carries an upstream signature. When extracting it with `dpkg-source`, confirm that the signature is verified by a trusted Debian/Ubuntu key configured on the machine. If the tool reports a missing key or an unverifiable signature, signature verification has not succeeded. `sha256sum -c SHA256SUMS` checks files against the repository manifest, but the manifest itself is unsigned and does not independently authenticate their origin. Then install the resulting `0.30-2xing1` package using the normal Debian packaging workflow and follow the verification steps above. These commands describe the source modification path; some build environments may need PPD build dependencies installed first.
 
 ## Build and verification record
 
@@ -150,4 +182,4 @@ The `performance` governor selects the driver's performance algorithm; it does n
 
 ## Source and license
 
-The patch is based on GPL-3-licensed PPD source. See `COPYING` and `NOTICE` for upstream attribution and copyright information. This repository contains the source patch, verification record, and Debian binary packages for reproduction or rollback.
+The PPD daemon and the C file here are licensed under GPL-3 as declared by upstream. The corresponding upstream source, Debian packaging, and local changes are provided together so the binary package can be reviewed and rebuilt. The patch also modifies `tests/integration_test.py`, which upstream `debian/copyright` identifies as GPL-2-or-later. Original copyright notices are retained; attribution to this project's local modifications does not claim ownership of upstream code or other contributors' work. License texts are in [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt), [`LICENSES/GPL-2.0.txt`](LICENSES/GPL-2.0.txt), and [`LICENSES/GFDL-1.3.txt`](LICENSES/GFDL-1.3.txt). For file-by-file licensing and the applicable license versions, consult `debian/copyright` in the included source package.

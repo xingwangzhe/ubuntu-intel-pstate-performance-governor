@@ -59,15 +59,6 @@
    if (pstate->epb_devices) {
 --- a/tests/integration_test.py
 +++ b/tests/integration_test.py
-@@ -29,6 +29,8 @@
-
- import dbus
-
-+import platform
-+
- try:
-     import gi
-     from gi.repository import GLib
 @@ -720,7 +722,18 @@
          self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
          self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
@@ -107,15 +98,3 @@
 
          energy_prefs = os.path.join(dir1, "energy_performance_preference")
          self.assert_file_eventually_contains(energy_prefs, "balance_performance\n")
-@@ -2205,7 +2218,10 @@
-             stderr=sys.stderr,
-         ) as launch_process:
-             self.assertTrue(launch_process)
--            time.sleep(1)
-+            if platform.machine() == 'riscv64':
-+                time.sleep(3)
-+            else:
-+                time.sleep(1)
-             holds = self.get_dbus_property("ActiveProfileHolds")
-             self.assertEqual(len(holds), 1)
-             hold = holds[0]

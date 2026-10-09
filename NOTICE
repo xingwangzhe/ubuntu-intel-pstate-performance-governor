@@ -1,6 +1,8 @@
-This repository packages a local patch to power-profiles-daemon.
+This repository contains source and binary packages derived from power-profiles-daemon.
 
 Upstream project: https://gitlab.freedesktop.org/upower/power-profiles-daemon
-Upstream source is primarily GPL-3. Debian packaging and individual source files may carry different licenses as identified in upstream debian/copyright. The patch is provided for review; the included Debian packages are rebuilt derivatives of the upstream project.
+Upstream source and Debian packaging retain their respective authors' copyright notices. See the included source package's debian/copyright for file-by-file attribution and licensing.
 
-This is an unofficial build and is not affiliated with or endorsed by Ubuntu, Debian, Intel, or the upstream maintainers.
+Copyright (C) 2026 Xingwangzhe for the original local changes in the Intel P-State governor patch and related test changes. The C driver changes are distributed under the upstream file's GPL-3 terms; changes to tests/integration_test.py follow that file's GPL-2-or-later terms. The patch contains changes to files under these distinct upstream licenses; do not treat it as relicensing the upstream work.
+
+Project documentation describes this local modification and does not change the licensing of upstream files. This unofficial build is not affiliated with or endorsed by Ubuntu, Debian, Intel, or the upstream maintainers.
