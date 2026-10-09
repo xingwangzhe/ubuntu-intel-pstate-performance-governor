@@ -1,0 +1,121 @@
+--- a/src/ppd-driver-intel-pstate.c
++++ b/src/ppd-driver-intel-pstate.c
+@@ -324,6 +324,28 @@
+   g_return_val_if_reached (NULL);
+ }
+
++/* In active intel_pstate mode, the performance algorithm owns EPP and
++ * rejects attempts to write a less performance-oriented preference. Switch
++ * back to powersave before applying any non-performance EPP value. */
++static gboolean
++set_epp_governor (PpdDriverIntelPstate *pstate,
++                  const char           *governor,
++                  GError              **error)
++{
++  guint i;
++
++  for (i = 0; pstate->epp_devices && i < pstate->epp_devices->len; i++) {
++    const char *epp_path = g_ptr_array_index (pstate->epp_devices, i);
++    g_autofree char *policy_dir = g_path_get_dirname (epp_path);
++    g_autofree char *gov_path = g_build_filename (policy_dir, "scaling_governor", NULL);
++
++    if (!ppd_utils_write (gov_path, governor, error))
++      return FALSE;
++  }
++
++  return TRUE;
++}
++
+ static gboolean
+ apply_pref_to_devices (PpdDriver   *driver,
+                        PpdProfile   profile,
+@@ -340,10 +362,23 @@
+                         (pstate->epb_devices && pstate->epb_devices->len != 0), FALSE);
+
+   if (pstate->epp_devices) {
+-    const char *epp_pref = profile_to_epp_pref (profile, pstate->on_battery);
+-
+-    if (!ppd_utils_write_files (pstate->epp_devices, epp_pref, error))
+-      return FALSE;
++    if (profile == PPD_PROFILE_PERFORMANCE) {
++      if (!set_epp_governor (pstate, "performance", error))
++        return FALSE;
++    } else {
++      if (!set_epp_governor (pstate, DEFAULT_CPU_FREQ_SCALING_GOV, error))
++        return FALSE;
++    }
++
++    /* The performance governor forces EPP to performance and rejects writes
++     * of other values. Its governor is the performance profile on this
++     * active intel_pstate driver, so do not write EPP while it is selected. */
++    if (profile != PPD_PROFILE_PERFORMANCE) {
++      const char *epp_pref = profile_to_epp_pref (profile, pstate->on_battery);
++
++      if (!ppd_utils_write_files (pstate->epp_devices, epp_pref, error))
++        return FALSE;
++    }
+   }
+
+   if (pstate->epb_devices) {
+--- a/tests/integration_test.py
++++ b/tests/integration_test.py
+@@ -29,6 +29,8 @@
+
+ import dbus
+
++import platform
++
+ try:
+     import gi
+     from gi.repository import GLib
+@@ -720,7 +722,18 @@
+         self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
+         self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+-        self.assert_file_eventually_contains(energy_prefs, "performance")
++        governor = os.path.join(dir2, "scaling_governor")
++        self.assert_file_eventually_contains(governor, "performance")
++
++        # Switching back must restore the EPP-capable governor before writing
++        # the balanced preference.
++        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("balanced"))
++        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
++        self.assert_file_eventually_contains(governor, "powersave")
++        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
++
++        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
++        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+         # Disable turbo
+         self.write_file_contents(os.path.join(pstate_dir, "no_turbo"), "1\n")
+@@ -898,12 +911,12 @@
+
+         self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+
+-        # Error when setting performance mode
+-        with self.assertRaises(gi.repository.GLib.GError):
+-            self.set_dbus_property(
+-                "ActiveProfile", GLib.Variant.new_string("performance")
+-            )
+-        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
++        # Performance mode is governor-backed and does not need to write EPP.
++        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
++        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
++        self.assert_file_eventually_contains(
++            os.path.join(dir1, "scaling_governor"), "performance"
++        )
+
+         energy_prefs = os.path.join(dir1, "energy_performance_preference")
+         self.assert_file_eventually_contains(energy_prefs, "balance_performance\n")
+@@ -2205,7 +2218,10 @@
+             stderr=sys.stderr,
+         ) as launch_process:
+             self.assertTrue(launch_process)
+-            time.sleep(1)
++            if platform.machine() == 'riscv64':
++                time.sleep(3)
++            else:
++                time.sleep(1)
+             holds = self.get_dbus_property("ActiveProfileHolds")
+             self.assertEqual(len(holds), 1)
+             hold = holds[0]
